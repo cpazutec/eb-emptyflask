@@ -1,8 +1,43 @@
 from flask import Flask
+import os
+import mysql.connector
+from mysql.connector import Error
 
 # print a nice greeting.
 def say_hello(username = "World"):
-    return '<p>Hello %s!</p>\n' % username
+ return '<p>Hello %s!</p>\n' % username
+
+def connbd(bd1):
+ msg = 'starting '
+ if 'RDS_HOSTNAME' in os.environ:
+  DATABASES = {'default': {'ENGINE': 'django.db.backends.mysql','NAME': os.environ['RDS_DB_NAME'],'USER': os.environ['RDS_USERNAME'],'PASSWORD': os.environ['RDS_PASSWORD'],'HOST': os.environ['RDS_HOSTNAME'],'PORT': os.environ['RDS_PORT'],}}
+  dbname = os.environ['RDS_DB_NAME']
+  dbuser = os.environ['RDS_USERNAME']
+  dbpwd = os.environ['RDS_PASSWORD']
+  dbport = os.environ['RDS_PORT']
+  dbhost = os.environ['RDS_HOSTNAME']
+  try:
+   connection = mysql.connector.connect(host=dbhost, database=dbname, user=dbuser, password=dbpwd)
+   if connection.is_connected():
+    db_Info = connection.get_server_info()
+    print("Connected to MySQL Server version ", db_Info)
+    cursor = connection.cursor()
+    cursor.execute("select database();")
+    record = cursor.fetchone()
+    msg = msg + '--> connected'
+    print("You're connected to database: ", record)
+  except Error as e:
+   print("Error while connecting to MySQL", e)
+  finally:
+   if connection.is_connected():
+    cursor.close()
+    connection.close()
+    msg = msg + ' --> closed'
+    print("MySQL connection is closed")
+ else:
+  DATABASES = 'XX'
+  dbname = 'nodb'
+ return 'Hello '+bd1 + ' --> ' + msg
 
 # some bits of text for the page.
 header_text = '''
@@ -21,10 +56,8 @@ application = Flask(__name__)
 application.add_url_rule('/', 'index', (lambda: header_text +
     say_hello() + instructions + footer_text))
 
-# add a rule when the page is accessed with a name appended to the site
-# URL.
-application.add_url_rule('/<username>', 'hello', (lambda username:
-    header_text + say_hello(username) + home_link + footer_text))
+application.add_url_rule('/<bd1>', 'hello', (lambda bd1: header_text +
+    say_hello() + instructions + connbd(bd1) + footer_text))
 
 # run the app.
 if __name__ == "__main__":
